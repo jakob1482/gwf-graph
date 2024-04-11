@@ -1,219 +1,126 @@
-import sys
-import csv
-from functools import partial
-from itertools import chain
-from collections import defaultdict
-
 import click
-import graphviz
-from graphviz import Digraph
-import attr
-
-from gwf.core import Graph, Scheduler, TargetStatus
-from gwf.filtering import filter_names
-from gwf.exceptions import GWFError
-from gwf.backends import Backend
-
-
-def dfs(graph, root, visited={}):
-    path = []
-
-    def dfs_inner(node):
-        if node in visited:
-            return
-        visited.add(node)
-        for dep in graph.dependencies[node]:
-            dfs_inner(dep)
-        path.append(node)
-
-    dfs_inner(root)
-    return path
+import regex as re
+from graphviz import Digraph, FORMATS
+from gwf import Workflow
+from gwf.core import (
+    CachedFilesystem,
+    Context,
+    get_spec_hashes,
+    Graph,
+    Status,
+    Target,
+)
+from gwf.backends import create_backend
+from gwf.scheduling import get_status_map
+from gwf_utilization import accounting, main
 
 
-def bfs(graph, root, visited={}):
-    queue = [root]
-    path = []
-
-    while queue:
-        node = queue.pop(0)
-        if node not in visited:
-            visited.add(node)
-            for dep in graph.dependencies[node]:
-                queue.append()
-            path.append(node)
-    return path
-
-
-def visit_all_dependencies(func, graph, matches):
-    visited = set()
-    paths = map(partial(func, graph, visited=visited), matches)
-    for target in chain(*paths):
-        yield target
-
-
-def visit_all_dependencies_bfs(graph, matches):
-    yield from visit_all_dependencies(bfs, graph, matches)
-
-
-def visit_all_dependencies_dfs(graph, matches):
-    yield from visit_all_dependencies(dfs, graph, matches)
-
-
-def get_targets_status(obj, graph, matches):
-    status_dict = dict()
-    backend_cls = Backend.from_config(obj)
-    with backend_cls() as backend:
-        scheduler = Scheduler(graph, backend)
-        for target in visit_all_dependencies_dfs(graph, matches):
-            status_dict[target] = scheduler.status(target)
-    return status_dict
-
-
-status_colors = {
-    TargetStatus.SHOULDRUN: "purple",
-    TargetStatus.SUBMITTED: "yellow",
-    TargetStatus.RUNNING: "blue",
-    TargetStatus.COMPLETED: "green",
+STATUS_COLORS = {
+    Status.CANCELLED: "purple",
+    Status.FAILED: "red",
+    Status.COMPLETED: "green",
+    Status.RUNNING: "blue",
+    Status.SUBMITTED: "yellow",
+    Status.SHOULDRUN: "black",
 }
 
 
-def sif_format(graph, matches, conf):
-    lines = list()
-    for target in visit_all_dependencies_dfs(graph, matches):
-        name = target.name
-        dependencies = list(map(lambda d: d.name, graph.dependencies[target]))
-        if dependencies:
-            lines.append(
-                "{} {} {}".format(name, "dependencies", " ".join(dependencies))
-            )
-    return "\n".join(lines)
+def validate_output_format(context: click.Context, param: click.Parameter, value: str):
+    """
+    Validates that the output format is supported by graphviz.
+
+    Args:
+        context (click.Context): The click context.
+        param (click.Parameter): The click parameter.
+        value (str): The output format.
+
+    Returns:
+        str: The output format if it is valid.
+
+    Raises:
+        click.BadParameter: If the output format is not valid.
+    """
+    if value:
+        value_match = re.match(r".*\.([a-z]+)$", value)
+        if value_match.group(1) in FORMATS:
+            return value
+    raise click.BadParameter("Output format must be one of: " + ", ".join(FORMATS))
 
 
-def more_than_n_children(graph, n, target):
-    return len(graph.dependencies[target]) > n
+def create_graph(
+    dependents: dict[set],
+    status_map: dict[Target, Status],
+    output: str,
+):
+    """
+    Creates a graph visualization of the target dependencies in the gwf workflow.
 
+    Args:
+        dependents (dict): A dictionary with dependent targets as keys and sets of dependency targets
+                           as values.
+        status_map (dict): A dictionary with targets as keys and statuses as values.
+        output (str): The name (and path) of the output graph visualization. Must end with a
+                      valid graphviz format (e.g. png, svg, etc.).
+    """
+    output_name = "".join(output.split(".")[:-1])
+    output_format = output.split(".")[-1]
+    graph = Digraph(comment="Workflow", format=output_format)
 
-def have_multiple_children(graph, target):
-    return more_than_n_children(graph, target, 1)
-
-
-def follow_simple_path(graph, init):
-    path = list()
-
-    def dfs_inner(node):
-        if have_multiple_children(node):
-            return
-        for dep in graph.dependencies[node]:
-            dfs_inner(dep)
-        path.append(node)
-
-    dfs_inner(root)
-    return path
-
-
-# TODO: This function is not finished
-def fint_parallel_paths(graph, matches):
-    candidats = dict()
-    spitting_targets = filter(
-        partial(have_many_children, graph, 4),
-        visit_all_dependencies_bfs(graph, matches),
-    )
-    for target in spitting_targets:
-        candidats[target] = [
-            follow_simple_path(dep) for dep in graph.dependencies[target]
-        ]
-    pass
-
-
-def create_dot_graph(graph, matches, conf):
-    dot = Digraph(
-        comment="Dependency Graph",
-        graph_attr={"splines": "curved"},
-        node_attr={"style": "filled"},
-        edge_attr={"arrowsize": ".5"},
-    )
-    for target in visit_all_dependencies_dfs(graph, matches):
-        name = target.name
-        color = "white"
-        if conf.status_dict != None:
-            color = status_colors[conf.status_dict[target]]
-        dot.node(name, name, fillcolor=color)  # shape='parallelogram'
-        for dep_target in graph.dependencies[target]:
-            dot.edge(name, dep_target.name)
-    return dot
-
-
-def dot_format(graph, matches, conf):
-    dot = create_dot_graph(graph, matches, conf)
-    return dot.source
-
-
-def graphviz_formats(graph, matches, conf):
-    dot = create_dot_graph(graph, matches, conf)
-    output_file = "dependency_graph.gv"
-    if conf.output != sys.stdout:
-        output_file = conf.output
-    dot.render(output_file, format=conf.format)
-
-
-@attr.s
-class Configurations(object):
-    func = attr.ib()
-    format = attr.ib(default=None)
-    output = attr.ib(default=sys.stdout)
-    status_dict = attr.ib(default=None)
-    compact = attr.ib(default=False)
-
-
-def default_conf():
-    return Configurations(func=graphviz_formats)
-
-
-format_conf = defaultdict(
-    default_conf,
-    {"sif": Configurations(func=sif_format), "dot": Configurations(func=dot_format),},
-)
-FORMATS = set(format_conf.keys()) | graphviz.backend.FORMATS
-
-
-def output_result(conf, output_str):
-    if not output_str:
-        return
-    if conf.output == sys.stdout:
-        print(output_str)
+    if status_map:
+        for target, status in status_map.items():
+            color = STATUS_COLORS.get(status, "black")
+            graph.node(str(target), shape="rectangle", style="rounded", color=color)
     else:
-        with open(conf.output, "w") as fp:
-            fp.write(output_str)
+        graph.attr("node", shape="rectangle", style="rounded")
+
+    for target, dependencies in dependents.items():
+        for dependency in dependencies:
+            graph.edge(str(target), str(dependency))
+
+    graph.render(output_name, view=True)
 
 
+# @TODO: Add target resource utilization to the graph using the gwf-utilization plugin.
 @click.command()
-@click.argument("targets", nargs=-1)
-@click.option("-f", "--output-format", type=click.Choice(FORMATS), default="svg")
-@click.option("-o", "--output", default=None)
-@click.option("--status/--no-status", default=False)
-@click.option("--compact/--no-compact", default=False)
+@click.option(
+    "-o",
+    "--output",
+    default="workflow.png",
+    callback=validate_output_format,
+    help="The name (and path) of the output graph visualization. Must end with a valid graphviz format (e.g. png, svg, etc.). Defaults to 'workflow.png'.",
+)
+@click.option(
+    "--status/--no-status",
+    default=False,
+    help="Flag to include the status (e.g., running, completed, failed) of each target in the graph.",
+)
 @click.pass_obj
-def graph(obj, targets, output_format, output, status, compact):
-    graph = Graph.from_config(obj)
+def graph(context: Context, output, status):
+    """
+    Generates a graph visualization of the target dependencies in the gwf workflow. Optionally,
+    the status of the targets can be included, providing insight into the workflow's current state.
 
-    # If targets supplyed only show dependencies for thoes targets
-    # otherwise show the whole workflow
-    matches = graph.targets.values()
-    if targets:
-        matches = filter_names(matches, targets)
-        # Prevent drawing an empty graph
-        if not matches:
-            raise GWFError("Non of the targets was found in the workflow")
-
-    conf = format_conf[output_format]
-    conf.format = output_format  # necessary for defaulting to graphviz formats
-
+    Args:
+        context (gwf.core.Context): The context object from gwf.
+        output (str): The name (and path) of the output graph visualization. Must end with a
+                      valid graphviz format (e.g. png, svg, etc.). Defaults to 'workflow.png'.
+        status (bool): If true, the status of the targets will be included in the visualization.
+                       Defaults to False.
+    """
+    workflow = Workflow.from_context(ctx=context)
+    fs = CachedFilesystem()
+    graph = Graph.from_targets(targets=workflow.targets, fs=fs)
+    status_map = dict()
     if status:
-        conf.status_dict = get_targets_status(obj, graph, matches)
-    if output:
-        conf.output = output
-    if compact:
-        conf.compact = compact
-
-    output_str = conf.func(graph, matches, conf)
-    output_result(conf, output_str)
+        spec_hashes = get_spec_hashes(
+            working_dir=context.working_dir, config=context.config
+        )
+        backend = create_backend(
+            name=context.backend,
+            working_dir=context.working_dir,
+            config=context.config,
+        )
+        status_map = get_status_map(
+            graph=graph, fs=fs, backend=backend, spec_hashes=spec_hashes
+        )
+    create_graph(dependents=graph.dependents, status_map=status_map, output=output)
