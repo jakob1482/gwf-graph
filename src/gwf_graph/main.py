@@ -62,8 +62,7 @@ def create_graph(
         output (str): The name (and path) of the output graph visualization. Must end with a
                       valid graphviz format (e.g. png, svg, etc.).
     """
-    output_name = "".join(output.split(".")[:-1])
-    output_format = output.split(".")[-1]
+    output_name, output_format = output.rsplit(".", 1)
     graph = Digraph(comment="Workflow", format=output_format)
 
     if status_map:
@@ -77,7 +76,7 @@ def create_graph(
         for dependency in dependencies:
             graph.edge(str(target), str(dependency))
 
-    graph.render(output_name, view=True)
+    graph.render(output_name)
 
 
 # @TODO: Add target resource utilization to the graph using the gwf-utilization plugin.
@@ -99,6 +98,7 @@ def graph(context: Context, output, status):
     """
     Generates a graph visualization of the dependency graph in the gwf workflow. Optionally,
     the status of the targets can be included, providing insight into the workflow's current state.
+    \f
 
     Args:
         context (gwf.core.Context): The context object from gwf.
