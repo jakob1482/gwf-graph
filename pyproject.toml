@@ -14,7 +14,14 @@ maintainers = [{ name = "Jakob Jersild Nielsen", email = "jjn@inguz.dev" }]
 license = { text = "GPL-3.0" }
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = ["click", "graphviz", "gwf>=2.0.4", "gwf_utilization", "regex"]
+dependencies = [
+    "click",
+    "graphviz",
+    "gwf>=2.0.4",
+    "gwf_utilization",
+    "pydot",
+    "regex",
+]
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
