@@ -1,39 +1,33 @@
 # gwf-graph
 
+**Under development.**
+
 Generates a graph visualization of the dependency graph in the gwf workflow. Optionally, the status of the targets can be included, providing insight into the workflow's current state.
 
 ## Installation
 
-To install the `gwf-graph` plugin into your current Python or Conda environment, follow these steps:
+Ensure the necessary dependencies `gwf` and `gwf-utilization` are installed into your Conda environment before installing the `gwf-graph` plugin. If these are not installed yet, follow the first step; otherwise, proceed directly yo the second step.
 
-1. Clone the repository:
-
+1. **Install dependencies**
     ```bash
-    git clone https://github.com/jakob1482/gwf-graph.git
+    # Install 'gwf' and 'gwf-utilization' using Conda
+    conda install gwf micknudsen::gwf-utilization
     ```
 
-2. Change into the `gwf-graph` directory:
-
+2. **Install the plugin**
     ```bash
-    cd gwf-graph
+    # Install 'gwf-graph' directly from the GitHub repository
+    pip install -U git+https://github.com/jakob1482/gwf-graph.git@master
     ```
 
-3. Install the plugin using `pip`:
+## Usage 
 
-    ```bash
-    pip install .
-    ```
+```console no-copy
+Usage: gwf graph [OPTIONS]
 
-## Usage
-
-Use the command `gwf graph` to generate a graph visualization of the dependency graph in your gwf workflow.
-
-```console
-gwf graph [OPTIONS]
-
-  Generates a graph visualization of the target dependencies in the gwf
-  workflow. Optionally, the status of the targets can be included, providing
-  insight into the workflow's current state.
+  Generates a graph visualization of the dependency graph in the gwf workflow.
+  Optionally, the status of the targets can be included, providing insight
+  into the workflow's current state.
 
 Options:
   -o, --output TEXT       The name (and path) of the output graph
