@@ -1,5 +1,7 @@
 import click
+import plotly.graph_objects as go
 import regex as re
+import graphviz
 from graphviz import Digraph, FORMATS
 from gwf import Workflow
 from gwf.core import (
@@ -16,12 +18,12 @@ from gwf_utilization import accounting, main
 
 
 STATUS_COLORS = {
-    Status.CANCELLED: "purple",
-    Status.FAILED: "red",
-    Status.COMPLETED: "green",
-    Status.RUNNING: "blue",
-    Status.SUBMITTED: "yellow",
-    Status.SHOULDRUN: "black",
+    Status.CANCELLED: "#E0C1EF",
+    Status.FAILED: "#FFB2B2",
+    Status.COMPLETED: "#B2FFB2",
+    Status.RUNNING: "#B2EBFF",
+    Status.SUBMITTED: "#FFFFB2",
+    Status.SHOULDRUN: "#D8D8D8",
 }
 
 
@@ -48,6 +50,7 @@ def validate_output_format(context: click.Context, param: click.Parameter, value
 
 
 def create_graph(
+    targets: dict[str, Target],
     dependents: dict[set],
     status_map: dict[Target, Status],
     output: str,
@@ -65,12 +68,15 @@ def create_graph(
     output_name, output_format = output.rsplit(".", 1)
     graph = Digraph(comment="Workflow", format=output_format)
 
-    if status_map:
-        for target, status in status_map.items():
-            color = STATUS_COLORS.get(status, "black")
-            graph.node(str(target), shape="rectangle", style="rounded", color=color)
-    else:
-        graph.attr("node", shape="rectangle", style="rounded")
+    for name, target in targets.items():
+        status = status_map.get(target, Status.SHOULDRUN)
+        color = STATUS_COLORS.get(status, Status.SHOULDRUN)
+        graph.node(
+            name,
+            style="rounded,filled",
+            shape="rectangle",
+            fillcolor=color,
+        )
 
     for target, dependencies in dependents.items():
         for dependency in dependencies:
@@ -123,4 +129,9 @@ def graph(context: Context, output, status):
         status_map = get_status_map(
             graph=graph, fs=fs, backend=backend, spec_hashes=spec_hashes
         )
-    create_graph(dependents=graph.dependents, status_map=status_map, output=output)
+    create_graph(
+        targets=graph.targets,
+        dependents=graph.dependents,
+        status_map=status_map,
+        output=output,
+    )
