@@ -27,7 +27,9 @@ STATUS_COLORS = {
 }
 
 
-def validate_output_format(context: click.Context, param: click.Parameter, value: str):
+def validate_output_format(
+    context: click.Context, param: click.Parameter, filename: str
+):
     """
     Validates that the output format is supported by graphviz.
 
@@ -42,10 +44,10 @@ def validate_output_format(context: click.Context, param: click.Parameter, value
     Raises:
         click.BadParameter: If the output format is not valid.
     """
-    if value:
-        value_match = re.match(r".*\.([a-z]+)$", value)
-        if value_match.group(1) in FORMATS:
-            return value
+    if filename:
+        extension_match = re.match(r".*\.([a-z]+)$", filename)
+        if extension_match and extension_match.group(1) in FORMATS:
+            return filename
     raise click.BadParameter("Output format must be one of: " + ", ".join(FORMATS))
 
 
@@ -90,9 +92,9 @@ def create_graph(
 @click.option(
     "-o",
     "--output",
-    default="workflow.png",
+    default="dependency-graph.png",
     callback=validate_output_format,
-    help="The name (and path) of the output graph visualization. Must end with a valid graphviz format (e.g. png, svg, etc.). Defaults to 'workflow.png'.",
+    help="The name (and path) of the output graph visualization. Must end with a valid graphviz format (e.g. png, svg, etc.), as the output format is inferred from the filename. Defaults to 'dependency-graph.png'.",
 )
 @click.option(
     "--status/--no-status",
@@ -109,7 +111,7 @@ def graph(context: Context, output, status):
     Args:
         context (gwf.core.Context): The context object from gwf.
         output (str): The name (and path) of the output graph visualization. Must end with a
-                      valid graphviz format (e.g. png, svg, etc.). Defaults to 'workflow.png'.
+                      valid graphviz format (e.g. png, svg, etc.). Defaults to 'dependency-graph.png'.
         status (bool): If true, the status of the targets will be included in the visualization.
                        Defaults to False.
     """
@@ -117,6 +119,7 @@ def graph(context: Context, output, status):
     fs = CachedFilesystem()
     graph = Graph.from_targets(targets=workflow.targets, fs=fs)
     status_map = dict()
+
     if status:
         spec_hashes = get_spec_hashes(
             working_dir=context.working_dir, config=context.config
@@ -129,6 +132,7 @@ def graph(context: Context, output, status):
         status_map = get_status_map(
             graph=graph, fs=fs, backend=backend, spec_hashes=spec_hashes
         )
+
     create_graph(
         targets=graph.targets,
         dependents=graph.dependents,
