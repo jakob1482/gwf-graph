@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gwf-graph"
-version = "0.1.0"
+version = "0.1.1"
 description = "Create a visual representation of the dependency graph in your gwf workflow"
 authors = [
     { name = "Per Høgfeldt" },
