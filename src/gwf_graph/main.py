@@ -1,7 +1,5 @@
 import click
-import plotly.graph_objects as go
 import regex as re
-import graphviz
 from graphviz import Digraph, FORMATS
 from gwf import Workflow
 from gwf.core import (
