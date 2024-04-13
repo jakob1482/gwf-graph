@@ -29,7 +29,7 @@ Ensure the necessary dependencies `gwf` and `gwf-utilization` are installed into
 
 ## Usage 
 
-```console no-copy
+```{: .console .no-copy}
 Usage: gwf graph [OPTIONS]
 
   Generates a graph visualization of the dependency graph in the gwf workflow.
