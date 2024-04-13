@@ -4,12 +4,12 @@
 
 Generates a graph visualization of the dependency graph in the gwf workflow. Optionally, the status of the targets can be included, providing insight into the workflow's current state.
 
-<code style="color:#E0C1EF;font-size:24px">&#9632;</code> CANCELLED<br>
-<code style="color:#FFB2B2;font-size:24px">&#9632;</code> FAILED<br>
-<code style="color:#B2FFB2;font-size:24px">&#9632;</code> COMPLETED<br>
-<code style="color:#B2EBFF;font-size:24px">&#9632;</code> RUNNING<br>
-<code style="color:#FFFFB2;font-size:24px">&#9632;</code> SUBMITTED<br>
-<code style="color:#D8D8D8;font-size:24px">&#9632;</code> SHOULDRUN
+<img src="https://raw.githubusercontent.com/jakob1482/gwf-graph/master/assets/status_colors/cancelled.svg" width="12px">&nbsp; CANCELLED<br>
+<img src="https://raw.githubusercontent.com/jakob1482/gwf-graph/master/assets/status_colors/failed.svg" width="12px">&nbsp; FAILED<br>
+<img src="https://raw.githubusercontent.com/jakob1482/gwf-graph/master/assets/status_colors/completed.svg" width="12px">&nbsp; COMPLETED<br>
+<img src="https://raw.githubusercontent.com/jakob1482/gwf-graph/master/assets/status_colors/running.svg" width="12px">&nbsp; RUNNING<br>
+<img src="https://raw.githubusercontent.com/jakob1482/gwf-graph/master/assets/status_colors/submitted.svg" width="12px">&nbsp; SUBMITTED<br>
+<img src="https://raw.githubusercontent.com/jakob1482/gwf-graph/master/assets/status_colors/shouldrun.svg" width="12px">&nbsp; SHOULDRUN
 
 ## Installation
 
