@@ -53,7 +53,7 @@ def create_graph(
     output: str,
 ):
     """
-    Creates a graph visualization of the target dependencies in the gwf workflow.
+    Creates a graph visualization of the dependency graph in the gwf workflow.
 
     Args:
         dependents (dict): A dictionary with dependent targets as keys and sets of dependency targets
@@ -97,7 +97,7 @@ def create_graph(
 @click.pass_obj
 def graph(context: Context, output, status):
     """
-    Generates a graph visualization of the target dependencies in the gwf workflow. Optionally,
+    Generates a graph visualization of the dependency graph in the gwf workflow. Optionally,
     the status of the targets can be included, providing insight into the workflow's current state.
 
     Args:
