@@ -24,7 +24,7 @@ Ensure the necessary dependencies `gwf` and `gwf-utilization` are installed into
 2. **Install the plugin**
     ```bash
     # Install 'gwf-graph' directly from the GitHub repository
-    pip install -U git+https://github.com/jakob1482/gwf-graph.git@master
+    pip install -U git+https://github.com/jakobjn/gwf-graph.git@master
     ```
 
 ## Usage 
